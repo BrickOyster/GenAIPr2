@@ -80,12 +80,17 @@ class SimpleNet(nn.Module):
             dim_hids: dimensions of hidden features
             num_timesteps: number of timesteps
         """
+        layers = []
+        dims = [dim_in] + dim_hids + [dim_out]
+        for i in range(len(dims) - 1):
+            # Add a linear layer with time embedding
+            layers.append(TimeLinear(dims[i], dims[i + 1], num_timesteps))
+            if i < len(dims) - 2:
+                # Add a ReLU activation function except for the last layer
+                layers.append(nn.ReLU())
+        # Create a ModuleList to hold the layers
+        self.net = nn.ModuleList(layers)
 
-        ######## TODO ########
-        # Assignment -- implement the denoiser model
-
-        ######################
-        
     def forward(self, x: torch.Tensor, t: torch.Tensor):
         """
         Implement the forward pass. This should output
@@ -95,8 +100,11 @@ class SimpleNet(nn.Module):
             x: the noisy data after t period diffusion
             t: the time that the forward diffusion has been running
         """
-        ######## TODO ########
-        # Assignment -- implement the forward pass of the denoiser
-
-        ######################
+        for layer in self.net:
+            if isinstance(layer, TimeLinear):
+                # If the layer is a TimeLinear layer, pass t to it  
+                x = layer(x, t)
+            else:
+                # Otherwise, just apply the layer
+                x = layer(x)
         return x
