@@ -117,9 +117,10 @@ class DiffusionModule(nn.Module):
         )
         eps_theta = self.network(xt, t)
 
-
+        # Generate random noise
         noise = torch.randn_like(xt)
-        nonzero_mask = (t != 0).float().view(-1, *[1]*(len(xt.shape)-1))  # [B, 1, 1, ...]
+        # Create a mask for non-zero timesteps
+        nonzero_mask = (t != 0).float().view(-1, *[1]*(len(xt.shape)-1))
     
         # Compute the previous sample x_{t-1} using the reverse process equation
         x_t_prev = (
@@ -160,8 +161,6 @@ class DiffusionModule(nn.Module):
         Output:
             loss: the computed loss to be backpropagated.
         """
-        ######## TODO ########
-        # Assignment -- compute noise matching loss.
         batch_size = x0.shape[0]
         t = (
             torch.randint(0, self.var_scheduler.num_train_timesteps, size=(batch_size,))
@@ -176,10 +175,8 @@ class DiffusionModule(nn.Module):
         xt = self.q_sample(x0, t, noise)
         pred_noise = self.network(xt, t)
 
-        loss = F.mse_loss(pred_noise, noise)
-
-        ######################
-        return loss
+        # Return loss
+        return F.mse_loss(pred_noise, noise)
 
     def save(self, file_path):
         hparams = {
