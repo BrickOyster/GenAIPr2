@@ -83,11 +83,27 @@ class DDPMScheduler(BaseScheduler):
             sample_prev (`torch.Tensor [B,C,H,W]`): one step denoised sample. (= x_{t-1})
         """
 
-        ######## TODO ########
-        # Assignment -- Implement the DDPM reverse step.
-        sample_prev = None
-        #######################
+        t_tensor = torch.tensor([t], device=x_t.device)
         
+        # Gather constants for batch
+        alphas_t = self._get_teeth(self.alphas, t_tensor)
+        alphas_cumprod_t = self._get_teeth(self.alphas_cumprod, t_tensor)
+        sigmas_t = self._get_teeth(self.sigmas, t_tensor)
+        eps_factor = (
+            (1 - alphas_t) /
+            (1 - alphas_cumprod_t).sqrt()
+        )
+
+        # Sample noise for stochasticity, except for t == 0
+        noise = torch.randn_like(x_t) if (t_tensor > 0).any() else torch.zeros_like(x_t)
+        # Create a mask for non-zero timesteps
+        nonzero_mask = (t_tensor != 0).float().view(-1, *[1]*(len(x_t.shape)-1))
+
+        sample_prev = (
+            ( 1 / alphas_t.sqrt() ) *
+            ( x_t - eps_factor * eps_theta ) +
+            ( nonzero_mask * (sigmas_t * noise) )
+        )
         return sample_prev
     
     # https://nn.labml.ai/diffusion/ddpm/utils.html
@@ -114,11 +130,12 @@ class DDPMScheduler(BaseScheduler):
         """
         
         if eps is None:
-            eps       = torch.randn(x_0.shape, device='cuda')
+            eps = torch.randn(x_0.shape, device='cuda')
 
-        ######## TODO ########
-        # Assignment -- Implement the DDPM forward step.
-        x_t = None
-        #######################
-
+        alphas_cumprod_t = self._get_teeth(self.alphas_cumprod, t)
+        
+        x_t = (
+            alphas_cumprod_t.sqrt() * x_0 +
+            (1 - alphas_cumprod_t).sqrt() * eps
+        )
         return x_t, eps

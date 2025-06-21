@@ -14,14 +14,20 @@ class DiffusionModule(nn.Module):
         self.var_scheduler = var_scheduler
 
     def get_loss(self, x0, class_label=None, noise=None):
-        ######## TODO ########
-        # Assignment -- compute noise matching loss.
         B = x0.shape[0]
-        timestep = self.var_scheduler.uniform_sample_t(B, self.device)        
-        loss = x0.mean()
-        ######################
-        return loss
-    
+        timestep = self.var_scheduler.uniform_sample_t(B, self.device)     
+        if noise is None:
+            noise = torch.randn_like(x0)
+
+        # Sample x_t
+        x_t, _ = self.var_scheduler.add_noise(x0, timestep, noise)   
+
+        # Predict noise
+        noise_pred = self.network(x_t, timestep)
+
+        # Return loss
+        return F.mse_loss(noise_pred, noise)
+
     @property
     def device(self):
         return next(self.network.parameters()).device
@@ -74,7 +80,7 @@ class DiffusionModule(nn.Module):
         torch.save(dic, file_path)
 
     def load(self, file_path):
-        dic = torch.load(file_path, map_location="cpu")
+        dic = torch.load(file_path, map_location="cpu", weights_only=False)
         hparams = dic["hparams"]
         state_dict = dic["state_dict"]
 
